@@ -1,12 +1,12 @@
-import { SegmentProfile } from "@/lib/mock-api";
+import { SegmentSummary } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShoppingBag, Clock, ArrowRight } from "lucide-react";
 
-export default function ClusterMetricsRow({ activeSegment }: { activeSegment: SegmentProfile }) {
+export default function ClusterMetricsRow({ activeSegment }: { activeSegment: SegmentSummary }) {
   const metrics = [
     { label: "Avg Recency", value: activeSegment.avgRecency.toFixed(0), unit: "days", icon: Clock },
     { label: "Avg Frequency", value: activeSegment.avgFrequency.toFixed(1), unit: "purchases", icon: ArrowRight },
-    { label: "Avg Monetary", value: `Rp ${(activeSegment.avgMonetary / 1000).toFixed(0)}k`, unit: "avg spend", icon: ShoppingBag },
+    { label: "Avg Monetary", value: `$${activeSegment.avgMonetary.toFixed(2)}`, unit: "avg spend", icon: ShoppingBag },
   ];
 
   return (

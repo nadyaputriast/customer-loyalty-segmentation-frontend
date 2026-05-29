@@ -1,31 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, SegmentProfile, RFMDataPoint } from "@/lib/mock-api";
 import { Loader2 } from "lucide-react";
 import ClusterList from "@/components/segments/cluster-list";
 import ClusterMetricsRow from "@/components/segments/cluster-metrics";
 import ClusterScatterPlot from "@/components/segments/scatter-plot";
 import { SiteHeader } from "@/components/layout/site-header";
+import { useSegments } from "@/contexts/segments-context";
 
 export default function SegmentPage() {
-  const [data, setData] = useState<{
-    segments: SegmentProfile[];
-    allSegmentData: SegmentProfile[];
-    scatterData: RFMDataPoint[];
-  } | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
+  const { segments, allSegmentData, scatterData, loading, getDistributionAsync } = useSegments();
   const [activeSegmentId, setActiveSegmentId] = useState<string>("all");
 
   useEffect(() => {
-    api.getSegments().then((res) => {
-      setData(res);
-      setIsLoading(false);
-    });
-  }, []);
+    getDistributionAsync();
+  }, [getDistributionAsync]);
 
-  if (!data && isLoading) {
+  if (loading || !segments || !allSegmentData) {
     return (
       <div className="min-h-svh flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
@@ -34,8 +25,8 @@ export default function SegmentPage() {
   }
 
   const activeSegment =
-    data?.allSegmentData.find((s) => s.id === activeSegmentId) ||
-    data?.allSegmentData[0];
+    allSegmentData.find((s) => s.id === activeSegmentId) ||
+    allSegmentData[0];
 
   return (
     <>
@@ -61,7 +52,7 @@ export default function SegmentPage() {
               <div className="lg:col-span-4 xl:col-span-3 h-full">
                 <div className="sticky top-10 h-full max-h-[calc(100vh-10rem)]">
                   <ClusterList
-                    segments={data?.segments || []}
+                    segments={segments}
                     activeSegmentId={activeSegmentId}
                     onSelectSegment={setActiveSegmentId}
                   />
@@ -77,8 +68,8 @@ export default function SegmentPage() {
 
                 <div className="flex-1 w-full relative">
                   <ClusterScatterPlot
-                    data={data?.scatterData || []}
-                    segments={data?.segments || []}
+                    data={scatterData || []}
+                    segments={segments}
                     activeSegmentId={activeSegmentId}
                   />
                 </div>
