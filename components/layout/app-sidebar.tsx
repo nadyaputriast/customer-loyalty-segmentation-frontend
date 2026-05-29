@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 import { cn } from "@/lib/utils"
 import { NavDocuments } from "@/components/layout/nav-documents"
@@ -24,11 +25,6 @@ import {
 } from "@tabler/icons-react"
 
 const data = {
-  user: {
-    name: "Demo Admin",
-    email: "demo@gmail.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -53,7 +49,13 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
+  const { user } = useAuth()
   const getOpenState = () => state !== "collapsed"
+
+  const fallbackUser = {
+    name: "Guest",
+    email: "guest@example.com",
+  }
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -89,7 +91,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user ?? fallbackUser} />
       </SidebarFooter>
     </Sidebar>
   )

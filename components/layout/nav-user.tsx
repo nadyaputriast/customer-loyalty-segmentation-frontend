@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 import {
   AlertDialog,
@@ -16,15 +16,12 @@ import {
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -33,7 +30,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { IconDotsVertical, IconUserCircle, IconCreditCard, IconNotification, IconLogout } from "@tabler/icons-react"
+import { IconDotsVertical, IconLogout } from "@tabler/icons-react"
+import { useAuth } from "@/hooks/use-auth"
+import { LoaderCircle } from "lucide-react"
 
 export function NavUser({
   user,
@@ -41,15 +40,27 @@ export function NavUser({
   user: {
     name: string
     email: string
-    avatar: string
   }
 }) {
-  const router = useRouter()
+  const { isLogout, loading } = useAuth()
   const { isMobile } = useSidebar()
+  const [isAlertOpen, setIsAlertOpen] = useState(false)
 
-  const handleLogout = () => {
-    document.cookie = "demo-auth=; Path=/; Max-Age=0; SameSite=Lax"
-    router.push("/login")
+  const getInitials = (name: string) => {
+    const names = name.split(" ")
+    const initials = names.map((n) => n[0]).join("")
+    return initials.toUpperCase()
+  }
+
+  const handleLogout = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+
+    try {
+      await isLogout();
+      setIsAlertOpen(false);
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   }
 
   return (
@@ -62,8 +73,9 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {getInitials(user.name)}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -83,8 +95,9 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -94,11 +107,11 @@ export function NavUser({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <AlertDialog>
+
+            <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
               <AlertDialogTrigger asChild>
                 <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
-                  <IconLogout
-                  />
+                  <IconLogout />
                   Log out
                 </DropdownMenuItem>
               </AlertDialogTrigger>
@@ -110,9 +123,14 @@ export function NavUser({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleLogout}>
-                    Log out
+                  <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleLogout}
+                    disabled={loading}
+                    className="flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    <LoaderCircle className={`h-4 w-4 animate-spin ${loading ? 'block' : 'hidden'}`} />
+                    <span>Log out</span>
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
