@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, CalendarIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import ActivityChartSection from "@/components/dashboard/activity-chart";
@@ -14,9 +14,6 @@ import { Calendar } from "@/components/ui/calendar"
 import { DateRangeOption } from "@/types";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-const minDate = new Date(process.env.MIN_DATE || "2018-03-01");
-const maxDate = new Date(process.env.MAX_DATE || "2018-03-31");
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
@@ -26,7 +23,9 @@ export default function DashboardPage() {
   } = useAnalytics();
 
   const [timeRange, setTimeRange] = useState<DateRangeOption>("last 7 days");
-  const [selectedDate, setSelectedDate] = useState<Date>(maxDate);
+  
+  // Default to today instead of 2018
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const [tablePage, setTablePage] = useState(1);
@@ -49,26 +48,17 @@ export default function DashboardPage() {
       getKPIsAsync(dateString);
       getChartDataAsync(dateString, timeRange);
     }
-  }, [user, selectedDate, timeRange]);
-
-  useEffect(() => {
-    setTablePage(1);
-  }, [debouncedSearch, statusFilter, rowsPerPage]);
+  }, [user, selectedDate, timeRange, getKPIsAsync, getChartDataAsync]);
 
   useEffect(() => {
     if (user) {
       getCustomerTableDataAsync(tablePage, rowsPerPage, debouncedSearch, statusFilter);
     }
-  }, [user, tablePage, rowsPerPage, debouncedSearch, statusFilter]);
+  }, [user, tablePage, rowsPerPage, debouncedSearch, statusFilter, getCustomerTableDataAsync])
 
   return (
     <>
-      <SiteHeader
-        breadcrumbs={[
-          { label: "LoyalT", href: "/dashboard" },
-          { label: "Dashboard" },
-        ]}
-      />
+      <SiteHeader breadcrumbs={[{ label: "LoyalT", href: "/dashboard" }, { label: "Dashboard" }]} />
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-4 py-4 md:gap-6 md:py-6">
           <div className="relative flex w-full flex-col gap-6 px-4 lg:px-6">
@@ -98,7 +88,8 @@ export default function DashboardPage() {
                   <Calendar
                     mode="single"
                     required
-                    disabled={{ before: minDate, after: maxDate }}
+                    // Restrict future dates, but allow everything in the past
+                    disabled={{ after: new Date() }}
                     selected={selectedDate}
                     onSelect={(date) => {
                       if (date) {
