@@ -10,7 +10,24 @@ interface SegmentsContextType {
   segments: SegmentSummary[] | null;
   allSegmentData: SegmentSummary[] | null;
   scatterData: RFMDataPoint[] | null;
+  clusterStats: ClusterStats[] | null;
   getDistributionAsync: () => Promise<void>;
+}
+
+export interface ClusterStats {
+  id: string;
+  name: string;
+  userCount: number;
+  meanL: number;
+  stdL: number;
+  meanR: number;
+  stdR: number;
+  meanF: number;
+  stdF: number;
+  meanM: number;
+  stdM: number;
+  color: string;
+  description: string;
 }
 
 const SegmentsContext = createContext<SegmentsContextType | undefined>(undefined);
@@ -22,6 +39,7 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
   const [segments, setSegments] = useState<SegmentSummary[] | null>(null);
   const [allSegmentData, setAllSegmentData] = useState<SegmentSummary[] | null>(null);
   const [scatterData, setScatterData] = useState<RFMDataPoint[] | null>(null);
+  const [clusterStats, setClusterStats] = useState<ClusterStats[] | null>(null);
 
   const getDistributionAsync = useCallback(async () => {
     setLoading(true);
@@ -36,7 +54,8 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
       setSegments(response.data.segments);
       setAllSegmentData(response.data.allSegmentData);
       setScatterData(response.data.scatterData);
-    } catch (err) {
+      setClusterStats(response.data.clusterStats || []);
+    } catch {
       setError("Failed to fetch segment distribution");
     } finally {
       setLoading(false);
@@ -45,7 +64,7 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
 
   return (
     <SegmentsContext.Provider
-      value={{ loading, error, segments, allSegmentData, scatterData, getDistributionAsync }}
+      value={{ loading, error, segments, allSegmentData, scatterData, clusterStats, getDistributionAsync }}
     >
       {children}
     </SegmentsContext.Provider>
