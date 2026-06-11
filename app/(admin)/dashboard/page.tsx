@@ -66,7 +66,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-4 w-full">
               <header className="w-full">
                 <h1 className="text-xl font-medium tracking-tight text-zinc-900">
-                  Welcome back, Admin
+                  Welcome back, {user?.name ?? "..."}!
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   Here is what is happening today.
