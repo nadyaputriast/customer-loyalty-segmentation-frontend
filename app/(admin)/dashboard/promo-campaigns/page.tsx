@@ -66,7 +66,7 @@ const PROMO_LABEL: Record<string, string> = {
 const formatParams = (type: string, params: ActivePromoParams): string => {
   if (type === "kupon") return `Diskon ${params.discount}%`;
   if (type === "cashback" || type === "price_off")
-    return `Nilai Rp ${params.value?.toLocaleString("id-ID")}`;
+    return `Nilai ¥ ${params.value?.toLocaleString("id-ID")}`;
   if (type === "sampling" || type === "bonus_packs")
     return `Produk: ${params.product_name}`;
   if (type === "bogo") return `Beli ${params.buy_qty} Gratis ${params.get_qty}`;

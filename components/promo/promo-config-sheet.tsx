@@ -347,7 +347,7 @@ export function PromoConfigSheet({
                 {/* FORM FIELDS */}
                 {(promoType === "cashback" || promoType === "price_off") && (
                   <div className="space-y-3 pt-2 border-t border-dashed">
-                    <Label className="text-sm font-semibold">Nominal Value (Rp)</Label>
+                    <Label className="text-sm font-semibold">Nominal Value (¥)</Label>
                     <Input type="number" className="h-10 bg-white" placeholder="e.g. 50000" value={promoValue} onChange={(e) => setPromoValue(e.target.value)} />
                   </div>
                 )}
