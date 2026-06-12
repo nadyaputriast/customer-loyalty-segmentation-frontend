@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import ActivityChartSection from "@/components/dashboard/activity-chart";
+import { ClusterTrendChart } from "@/components/dashboard/cluster-trend-chart";
 import CustomerTableSection from "@/components/dashboard/customer-table";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SectionCards } from "@/components/dashboard/section-cards";
@@ -17,9 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
-    kpis, charts, customerTableData, customerTableMetadata,
-    getKPIsAsync, getChartDataAsync, getCustomerTableDataAsync,
-    loadingKpis, loadingCharts, loadingTable
+    kpis, customerTableData, customerTableMetadata,
+    getChartDataAsync, getCustomerTableDataAsync,
+    loadingKpis, loadingTable
   } = useAnalytics();
 
   const [timeRange, setTimeRange] = useState<DateRangeOption>("last 7 days");
@@ -45,10 +45,10 @@ export default function DashboardPage() {
     if (user && selectedDate) {
       const dateString = format(selectedDate, "yyyy-MM-dd");
 
-      getKPIsAsync(dateString);
+      // getKPIsAsync(dateString);
       getChartDataAsync(dateString, timeRange);
     }
-  }, [user, selectedDate, timeRange, getKPIsAsync, getChartDataAsync]);
+  }, [user, selectedDate, timeRange, getChartDataAsync]);
 
   useEffect(() => {
     if (user) {
@@ -108,12 +108,7 @@ export default function DashboardPage() {
               isLoading={loadingKpis}
             />
 
-            <ActivityChartSection
-              data={charts || []}
-              timeRange={timeRange}
-              setTimeRange={setTimeRange}
-              isLoading={loadingCharts}
-            />
+            <ClusterTrendChart />
 
             <CustomerTableSection
               customers={customerTableData || []}

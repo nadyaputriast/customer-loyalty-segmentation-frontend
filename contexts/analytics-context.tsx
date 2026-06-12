@@ -15,7 +15,7 @@ interface AnalyticsContextType {
   charts: ChartData[] | null;
   customerTableData: CustomerRecord[] | null;
   customerTableMetadata: CustomerTableMetadata | null;
-  getKPIsAsync: (targetDate: string | Date) => Promise<void>;
+  getKPIsAsync: () => Promise<void>;
   getChartDataAsync: (targetDate: string | Date, dateRange: DateRangeOption) => Promise<void>;
   getCustomerTableDataAsync: (page: number, perPage: number, search?: string, segment?: string) => Promise<void>;
 }
@@ -45,23 +45,25 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     if (userFromCookie) setUser(userFromCookie);
   }, []);
 
-  const getKPIsAsync = useCallback(async (targetDate: string | Date) => {
-    const dateKey = new Date(targetDate).toISOString().split('T')[0];
+  const getKPIsAsync = useCallback(async () => {
+    // Karena KPI sekarang agregat global, kita gunakan cache key statis
+    const cacheKey = 'global_kpis';
 
-    if (kpiCache[dateKey]) {
-      setKpis(kpiCache[dateKey]);
+    if (kpiCache[cacheKey]) {
+      setKpis(kpiCache[cacheKey]);
       return;
     }
 
     setLoadingKpis(true);
     try {
-      const response = await getDashboardKPIs(targetDate);
-      if (response.data?.status === 'success') {
+      const response = await getDashboardKPIs();
+      if (!response.error && response.data) {
         setKpis(response.data.data);
-        setKpiCache(prev => ({ ...prev, [dateKey]: response.data.data }));
+        setKpiCache(prev => ({ ...prev, [cacheKey]: response.data.data }));
       }
     } catch (err) {
       setError("Failed to fetch KPIs");
+      console.error(err);
     } finally {
       setLoadingKpis(false);
     }
@@ -82,7 +84,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         setCharts(response.data.data);
         setChartCache(prev => ({ ...prev, [cacheKey]: response.data.data }));
       }
-    } catch (err) {
+    } catch{
       setError("Failed to fetch chart data");
     } finally {
       setLoadingCharts(false);
@@ -97,7 +99,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         setCustomerTableData(response.data.data);
         setCustomerTableMetadata(response.data.metadata);
       }
-    } catch (err) {
+    } catch{
       setError("Failed to fetch customer table data");
     } finally {
       setLoadingTable(false);

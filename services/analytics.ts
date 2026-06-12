@@ -1,19 +1,15 @@
 import { DateRangeOption } from "@/types";
 import axiosInstance from "@/lib/axios";
+import { isAxiosError } from "axios";
 
-export const getDashboardKPIs = async (targetDate: string | Date) => {
+export const getDashboardKPIs = async () => {
   try {
-    const response = await axiosInstance.get("/analytics/kpis", {
-      params: {
-        target_date: targetDate
-      }
-    });
+    const response = await axiosInstance.get('/analytics/kpis');
     return response.data;
-  } catch (error) {
-    console.error("Error fetching dashboard KPIs:", error);
-    throw error;
+  } catch {
+    throw new Error("Gagal mengambil data KPI");
   }
-}
+};
 
 export const getChartData = async (targetDate: string | Date, dateRange: DateRangeOption) => {
   try {
@@ -46,3 +42,30 @@ export const getCustomerTableData = async (page: number, perPage: number, search
     throw error;
   }
 }
+
+export const getSegmentTrends = async (startDate?: string, endDate?: string) => {
+  try {
+    let url = `/analytics/segment-trends`;
+    const params = new URLSearchParams();
+    
+    if (startDate) params.append("start_date", startDate);
+    if (endDate) params.append("end_date", endDate);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await axiosInstance.get(url);
+    return response.data;
+  } catch (error: unknown) {
+    const errorMessage = isAxiosError(error) 
+      ? error.response?.data?.detail 
+      : "Gagal mengambil data tren segmen";
+      
+    return {
+      error: true,
+      message: errorMessage,
+      data: null
+    };
+  }
+};
