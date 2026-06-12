@@ -30,7 +30,7 @@ const PROMO_LABEL: Record<string, string> = {
 const formatParams = (type: string, params: ActivePromoParams): string => {
   if (type === "kupon") return `Diskon ${params.discount}%`;
   if (type === "cashback" || type === "price_off")
-    return `Nilai Rp ${params.value?.toLocaleString("id-ID")}`;
+    return `Nilai ¥ ${params.value?.toLocaleString("id-ID")}`;
   if (type === "sampling" || type === "bonus_packs")
     return `Produk: ${params.product_name}`;
   if (type === "bogo") return `Beli ${params.buy_qty} Gratis ${params.get_qty}`;
@@ -298,7 +298,7 @@ function CustomerDetailContent() {
                           <span className="text-xs font-medium uppercase tracking-wider">Monetary</span>
                         </div>
                         <p className="text-2xl font-bold text-emerald-600">
-                          Rp {lrfm.M.toLocaleString("id-ID", { maximumFractionDigits: 0 })}
+                          ¥ {lrfm.M.toLocaleString("id-ID", { maximumFractionDigits: 0 })}
                         </p>
                         <p className="text-xs text-muted-foreground">Total uang yang dihabiskan</p>
                       </CardContent>

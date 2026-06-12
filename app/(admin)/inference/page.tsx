@@ -530,7 +530,7 @@ export default function InferencePage() {
                                       <div className="flex justify-between"><span className="text-zinc-500">Length</span><span className="font-medium">{c.stats.L.mean.toFixed(1)} hr</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Recency</span><span className="font-medium">{c.stats.R.mean.toFixed(1)} hr</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Frequency</span><span className="font-medium">{c.stats.F.mean.toFixed(1)} x</span></div>
-                                      <div className="flex justify-between"><span className="text-zinc-500">Monetary</span><span className="font-medium text-emerald-600">Rp {(c.stats.M.mean).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
+                                      <div className="flex justify-between"><span className="text-zinc-500">Monetary</span><span className="font-medium text-emerald-600">¥ {(c.stats.M.mean).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
                                     </div>
 
                                     {/* Kolom Standar Deviasi */}
@@ -541,7 +541,7 @@ export default function InferencePage() {
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi L</span><span className="font-medium text-zinc-600">± {c.stats.L.std.toFixed(1)}</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi R</span><span className="font-medium text-zinc-600">± {c.stats.R.std.toFixed(1)}</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi F</span><span className="font-medium text-zinc-600">± {c.stats.F.std.toFixed(1)}</span></div>
-                                      <div className="flex justify-between"><span className="text-zinc-500">Deviasi M</span><span className="font-medium text-zinc-600">± Rp {(c.stats.M.std).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
+                                      <div className="flex justify-between"><span className="text-zinc-500">Deviasi M</span><span className="font-medium text-zinc-600">± ¥ {(c.stats.M.std).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
                                     </div>
 
                                   </div>

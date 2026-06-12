@@ -105,7 +105,7 @@ export function BatchInferenceGraphics({ data }: { data: SegmentationData[] }) {
                 
                 {/* Sumbu Kanan khusus untuk Monetary */}
                 <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#10b981' }} 
-                  tickFormatter={(val) => `Rp${(val / 1000).toFixed(0)}k`} // Format ribuan agar rapi
+                  tickFormatter={(val) => `¥${(val / 1000).toFixed(0)}k`} // Format ribuan agar rapi
                 />
                 
                 <RechartsTooltip 
@@ -116,16 +116,16 @@ export function BatchInferenceGraphics({ data }: { data: SegmentationData[] }) {
                     const numericValue = Number(value) || 0;
                     const stringName = String(name);
                     
-                    // Beri format Rp untuk nilai Monetary di dalam tooltip
-                    if (stringName === "Nilai Monetary (Rp)") {
-                      return [`Rp ${numericValue.toLocaleString("id-ID")}`, stringName];
+                    // Beri format ¥ untuk nilai Monetary di dalam tooltip
+                    if (stringName === "Nilai Monetary (¥)") {
+                      return [`¥ ${numericValue.toLocaleString("id-ID")}`, stringName];
                     }
                     return [numericValue, stringName];
                   }}
                 />
                 
                 <Bar yAxisId="left" dataKey="nilaiLRF" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Nilai L/R/F" />
-                <Bar yAxisId="right" dataKey="nilaiM" fill="#10b981" radius={[4, 4, 0, 0]} name="Nilai Monetary (Rp)" />
+                <Bar yAxisId="right" dataKey="nilaiM" fill="#10b981" radius={[4, 4, 0, 0]} name="Nilai Monetary (¥)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
