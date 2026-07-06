@@ -1,95 +1,92 @@
-"use client"
+"use client";
 
-import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { DashboardKPI } from "@/types"
-import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { useEffect } from "react";
+import { Users, DollarSign, PieChart, Activity } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAnalytics } from "@/contexts/analytics-context";
 
-export function SectionCards({
-  kpis,
-  isLoading = false
-}: {
-  kpis: DashboardKPI[];
-  isLoading?: boolean;
-}) {
-  const GridWrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-3 dark:*:data-[slot=card]:bg-card">
-      {children}
-    </div>
-  );
+// Fungsi helper untuk menentukan Icon mana yang tampil
+const getIcon = (title: string) => {
+  if (title.toLowerCase().includes("pelanggan")) return <Users className="h-4 w-4 text-muted-foreground" />;
+  if (title.toLowerCase().includes("nilai") || title.toLowerCase().includes("monetary")) return <DollarSign className="h-4 w-4 text-muted-foreground" />;
+  if (title.toLowerCase().includes("segmen")) return <PieChart className="h-4 w-4 text-muted-foreground" />;
+  return <Activity className="h-4 w-4 text-muted-foreground" />;
+};
 
-  if (isLoading || !kpis || kpis.length === 0) {
+// Fungsi helper untuk Format Value
+const formatValue = (title: string, value: string | number) => {
+  if (typeof value === "string") return value;
+  
+  if (title.includes("Rata-rata Nilai") || title.includes("Monetary")) {
+    return new Intl.NumberFormat('zh-CN', {
+      style: 'currency',
+      currency: 'CNY',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value * 1000); 
+  }
+  
+  return new Intl.NumberFormat('id-ID').format(value);
+};
+
+export function SectionCards() {
+  // 1. Panggil variabel yang TEPAT dari context
+  const { kpis, loadingKpis, getKPIsAsync } = useAnalytics();
+
+  // 2. Trigger fetch data ke Backend saat komponen dimuat
+  useEffect(() => {
+    getKPIsAsync();
+  }, [getKPIsAsync]);
+
+  // 3. Gunakan loadingKpis untuk memunculkan efek skeleton
+  if (loadingKpis) {
     return (
-      <GridWrapper>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <Card className="@container/card" key={`skeleton-${i}`}>
-            <CardHeader>
-              <CardDescription>
-                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-              </CardDescription>
-              <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-2xl mt-1">
-                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
-              </CardTitle>
-              <CardAction>
-                <div className="h-6 w-16 bg-muted animate-pulse rounded-full" />
-              </CardAction>
+          <Card key={i} className="animate-pulse bg-zinc-50 border-zinc-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+               <div className="h-4 w-1/2 bg-zinc-200 rounded"></div>
+               <div className="h-4 w-4 bg-zinc-200 rounded-full"></div>
             </CardHeader>
-            <CardFooter className="flex-col items-start gap-2 text-sm mt-2">
-              <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-              <div className="h-3 w-40 bg-muted animate-pulse rounded" />
-            </CardFooter>
+            <CardContent>
+              <div className="h-8 w-3/4 bg-zinc-200 rounded mt-2"></div>
+              <div className="h-3 w-1/2 bg-zinc-200 rounded mt-3"></div>
+            </CardContent>
           </Card>
         ))}
-      </GridWrapper>
-    )
+      </div>
+    );
+  }
+
+  // Jika data kosong setelah loading selesai, jangan tampilkan apa-apa atau tampilkan fallback
+  if (!kpis || kpis.length === 0) {
+    return null; 
   }
 
   return (
-    <GridWrapper>
-      {kpis.map((kpi) => {
-        return (
-          <Card className="@container/card" key={kpi.title}>
-            <CardHeader>
-              <CardDescription>{kpi.title}</CardDescription>
-              <CardTitle className="text-xl font-semibold tabular-nums @[250px]/card:text-2xl">
-                {kpi.title.includes("Revenue")
-                  ? `$${Number(kpi.value).toLocaleString('en-US')}`
-                  : (Number(kpi.value).toLocaleString('en-US'))}
-              </CardTitle>
-              <CardAction>
-                <Badge variant="outline">
-                  {kpi.trend >= 0 ? (
-                    <IconTrendingUp />
-                  ) : (
-                    <IconTrendingDown />
-                  )}
-                  <span>{kpi.trend}%</span>
-                </Badge>
-              </CardAction>
-            </CardHeader>
-            <CardFooter className="flex-col items-start gap-1 text-sm">
-              <div className="line-clamp-1 flex gap-2 font-medium">
-                {kpi.trend >= 0 ? `${kpi.trend}% increase` : `${Math.abs(kpi.trend)}% decrease`}{" "}
-                {kpi.trend >= 0 ? (
-                  <IconTrendingUp className="size-4" />
-                ) : (
-                  <IconTrendingDown className="size-4" />
-                )}
-              </div>
-              <div className="text-muted-foreground">
-                Compared to previous day
-              </div>
-            </CardFooter>
-          </Card>
-        )
-      })}
-    </GridWrapper>
-  )
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {kpis.map((kpi, i) => (
+        <Card key={i} className="shadow-sm border-zinc-200 bg-white">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-600">
+              {kpi.title}
+            </CardTitle>
+            {getIcon(kpi.title)}
+          </CardHeader>
+          <CardContent>
+            {/* Value Utama */}
+            <div className="text-2xl font-bold text-zinc-900">
+              {formatValue(kpi.title, kpi.value)}
+            </div>
+            {/* Teks Penjelasan Bawah */}
+            <p className="text-xs text-muted-foreground mt-1">
+              {typeof kpi.value === "string" 
+                ? "Berdasarkan keseluruhan dataset" 
+                : "Agregasi dari seluruh histori pelanggan"}
+            </p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }

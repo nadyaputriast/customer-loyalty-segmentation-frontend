@@ -4,13 +4,43 @@ import { createContext, useState, useContext, useCallback, ReactNode } from "rea
 import { getSegmentDistribution } from "@/services/segments";
 import { SegmentSummary, RFMDataPoint } from "@/types";
 
+interface RawBackendData {
+  Length?: number;
+  length?: number;
+  Recency?: number;
+  recency?: number;
+  Frequency?: number;
+  frequency?: number;
+  Monetary?: number;
+  monetary?: number;
+  Cluster?: string | number;
+  clusterId?: string | number;
+}
+
 interface SegmentsContextType {
   loading: boolean;
   error: string | null;
   segments: SegmentSummary[] | null;
   allSegmentData: SegmentSummary[] | null;
   scatterData: RFMDataPoint[] | null;
+  clusterStats: ClusterStats[] | null;
   getDistributionAsync: () => Promise<void>;
+}
+
+export interface ClusterStats {
+  id: string;
+  name: string;
+  userCount: number;
+  meanL: number;
+  stdL: number;
+  meanR: number;
+  stdR: number;
+  meanF: number;
+  stdF: number;
+  meanM: number;
+  stdM: number;
+  color: string;
+  description: string;
 }
 
 const SegmentsContext = createContext<SegmentsContextType | undefined>(undefined);
@@ -22,6 +52,7 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
   const [segments, setSegments] = useState<SegmentSummary[] | null>(null);
   const [allSegmentData, setAllSegmentData] = useState<SegmentSummary[] | null>(null);
   const [scatterData, setScatterData] = useState<RFMDataPoint[] | null>(null);
+  const [clusterStats, setClusterStats] = useState<ClusterStats[] | null>(null);
 
   const getDistributionAsync = useCallback(async () => {
     setLoading(true);
@@ -35,8 +66,19 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
 
       setSegments(response.data.segments);
       setAllSegmentData(response.data.allSegmentData);
-      setScatterData(response.data.scatterData);
-    } catch (err) {
+
+      const rawScatter = response.data.scatterData || [];
+      const formattedScatterData = rawScatter.map((item: RawBackendData) => ({
+        length: item.Length !== undefined ? item.Length : (item.length || 0),
+        recency: item.Recency !== undefined ? item.Recency : (item.recency || 0),
+        frequency: item.Frequency !== undefined ? item.Frequency : (item.frequency || 0),
+        monetary: item.Monetary !== undefined ? item.Monetary : (item.monetary || 0),
+        clusterId: String(item.Cluster !== undefined ? item.Cluster : item.clusterId)
+      }));
+
+      setScatterData(formattedScatterData); 
+      setClusterStats(response.data.clusterStats || []);
+    } catch {
       setError("Failed to fetch segment distribution");
     } finally {
       setLoading(false);
@@ -45,7 +87,7 @@ export function SegmentsProvider({ children }: { children: ReactNode }) {
 
   return (
     <SegmentsContext.Provider
-      value={{ loading, error, segments, allSegmentData, scatterData, getDistributionAsync }}
+      value={{ loading, error, segments, allSegmentData, scatterData, clusterStats, getDistributionAsync }}
     >
       {children}
     </SegmentsContext.Provider>

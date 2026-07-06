@@ -1,7 +1,9 @@
 import {
-    LucideLayoutDashboard,
-    LucideIcon,
-    Boxes
+  LucideLayoutDashboard,
+  LucideIcon,
+  Boxes,
+  Clock,
+  Sparkles
 } from "lucide-react";
 
 type Submenu = {
@@ -32,12 +34,28 @@ export function getMenuList(pathname: string): Group[] {
           href: "/dashboard",
           label: "Dashboard",
           icon: LucideLayoutDashboard,
+          active: pathname.includes("/dashboard"),
           submenus: []
         },
         {
           href: "/segments",
           label: "Customer Segments",
           icon: Boxes,
+          active: pathname.includes("/segments"),
+          submenus: []
+        },
+        {
+          href: "/inference",
+          label: "Inference",
+          icon: Sparkles,
+          active: pathname.includes("/inference"),
+          submenus: []
+        },
+        {
+          href: "/inference-history",
+          label: "Inference History",
+          icon: Clock,
+          active: pathname.includes("/inference-history"),
           submenus: []
         }
       ]

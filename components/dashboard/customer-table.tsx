@@ -201,7 +201,10 @@ export default function CustomerTableSection({
                   </TableCell>
                   <TableCell className="py-3">
                     <span className="text-xs text-zinc-700">
-                      ${customer.orderAmount.toFixed(2)}
+                      {new Intl.NumberFormat('zh-CN', {
+                        style: 'currency',
+                        currency: 'CNY',
+                      }).format(customer.orderAmount)}
                     </span>
                   </TableCell>
                   <TableCell className="py-3">
