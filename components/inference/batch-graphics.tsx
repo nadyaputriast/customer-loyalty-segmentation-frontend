@@ -6,12 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 const SEGMENT_COLORS: Record<string, string> = {
-  "Champions": "#18181b",
-  "Loyal Customers": "#f59e0b",
-  "Promising": "#10b981",
-  "At Risk": "#ef4444",
-  "Newbies": "#3b82f6",
-  "Hibernating": "#71717a",
+  "Uncertain Lost Customers": "#ef4444",
+  "Platinum Customers": "#06b6d4",
+  "Dormant Lost Customers": "#f97316",
+  "High Value Loyal Customers": "#22c55e",
 };
 
 export function BatchInferenceGraphics({ data }: { data: SegmentationData[] }) {

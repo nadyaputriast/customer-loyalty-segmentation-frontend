@@ -92,6 +92,7 @@ export interface SegmentSummary {
 
 export interface RFMDataPoint {
   customer_id: string;
+  length: number;
   recency: number;
   frequency: number;
   monetary: number;

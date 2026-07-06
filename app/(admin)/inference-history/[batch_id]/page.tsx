@@ -117,7 +117,8 @@ export default function BatchDetailPage() {
                                   variant="ghost" 
                                   size="sm" 
                                   className="hover:bg-blue-50 hover:text-blue-600"
-                                  onClick={() => router.push(`/inference-history/${batchId}/${item.customer_id}`)}
+                                  disabled={!item.customer_id}
+                                  onClick={() => item.customer_id && router.push(`/inference-history/${batchId}/${encodeURIComponent(item.customer_id)}`)}
                                 >
                                   <Eye className="w-4 h-4 mr-2" /> Detail
                                 </Button>

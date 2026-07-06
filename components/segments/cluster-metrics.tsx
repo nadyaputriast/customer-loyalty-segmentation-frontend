@@ -1,16 +1,17 @@
 import { SegmentSummary } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
-import { ShoppingBag, Clock, ArrowRight } from "lucide-react";
+import { ShoppingBag, Clock, ArrowRight, Calendar } from "lucide-react";
 
-export default function ClusterMetricsRow({ activeSegment }: { activeSegment: SegmentSummary }) {
+export default function ClusterMetricsRow({ activeSegment }: { activeSegment: SegmentSummary & { avgLength?: number } }) {
   const metrics = [
+    { label: "Avg Length", value: (activeSegment.avgLength || 0).toFixed(0), unit: "days", icon: Calendar },
     { label: "Avg Recency", value: activeSegment.avgRecency.toFixed(0), unit: "days", icon: Clock },
     { label: "Avg Frequency", value: activeSegment.avgFrequency.toFixed(1), unit: "purchases", icon: ArrowRight },
-    { label: "Avg Monetary", value: `$${activeSegment.avgMonetary.toFixed(2)}`, unit: "avg spend", icon: ShoppingBag },
+    { label: "Avg Monetary", value: `¥${activeSegment.avgMonetary.toFixed(2)}`, unit: "avg spend", icon: ShoppingBag },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-4 w-full">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
       {metrics.map((m, i) => {
         const Icon = m.icon;
         return (
