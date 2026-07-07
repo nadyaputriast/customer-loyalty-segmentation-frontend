@@ -19,7 +19,7 @@ export default function DashboardPage() {
   const {
     kpis, customerTableData, customerTableMetadata,
     getChartDataAsync, getCustomerTableDataAsync,
-    loadingKpis, loadingTable
+    loadingTable
   } = useAnalytics();
 
   const [timeRange, setTimeRange] = useState<DateRangeOption>("last 7 days");
@@ -103,10 +103,7 @@ export default function DashboardPage() {
               </Popover>
             </div>
 
-            <SectionCards
-              kpis={kpis!}
-              isLoading={loadingKpis}
-            />
+            <SectionCards />
 
             <ClusterTrendChart />
 
