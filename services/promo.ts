@@ -89,8 +89,12 @@ export const getPromosByCluster = async (clusterId: number): Promise<StandardRes
 };
 
 // DELETE: Hapus promo berdasarkan id
-export async function deletePromoConfig(id: number) {
-  const res = await fetch(`/promo/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete promo config");
-  return res.json();
+export async function deletePromoConfig(id: number): Promise<StandardResponse<any>> {
+  try {
+    const response = await axiosInstance.delete<StandardResponse<any>>(`/promo/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting promo config:", error);
+    throw error;
+  }
 }
