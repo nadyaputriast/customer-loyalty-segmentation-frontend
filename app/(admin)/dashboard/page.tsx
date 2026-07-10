@@ -17,9 +17,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
-    kpis, customerTableData, customerTableMetadata,
+    customerTableData, customerTableMetadata,
     getChartDataAsync, getCustomerTableDataAsync,
-    loadingKpis, loadingTable
+    loadingTable
   } = useAnalytics();
 
   const [timeRange, setTimeRange] = useState<DateRangeOption>("last 7 days");
@@ -103,10 +103,7 @@ export default function DashboardPage() {
               </Popover>
             </div>
 
-            <SectionCards
-              kpis={kpis!}
-              isLoading={loadingKpis}
-            />
+            <SectionCards />
 
             <ClusterTrendChart />
 

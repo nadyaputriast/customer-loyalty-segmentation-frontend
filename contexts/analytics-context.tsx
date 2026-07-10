@@ -80,11 +80,13 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     setLoadingCharts(true);
     try {
       const response = await getChartData(targetDate, dateRange);
-      if (response.data?.status === 'success') {
+      if (!response.error && response.data) {
         setCharts(response.data.data);
         setChartCache(prev => ({ ...prev, [cacheKey]: response.data.data }));
+      } else {
+        setError(response.message || "Failed to fetch chart data");
       }
-    } catch{
+    } catch {
       setError("Failed to fetch chart data");
     } finally {
       setLoadingCharts(false);
@@ -95,11 +97,13 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     setLoadingTable(true);
     try {
       const response = await getCustomerTableData(page, perPage, search, segment);
-      if (response.data?.status === 'success') {
+      if (!response.error && response.data) {
         setCustomerTableData(response.data.data);
         setCustomerTableMetadata(response.data.metadata);
+      } else {
+        setError(response.message || "Failed to fetch customer table data");
       }
-    } catch{
+    } catch {
       setError("Failed to fetch customer table data");
     } finally {
       setLoadingTable(false);

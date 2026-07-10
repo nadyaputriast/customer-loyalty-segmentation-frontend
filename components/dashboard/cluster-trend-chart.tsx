@@ -123,16 +123,14 @@ export function ClusterTrendChart() {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
-                initialFocus
                 mode="range"
                 defaultMonth={dateRange?.from}
                 selected={dateRange}
                 onSelect={setDateRange}
                 numberOfMonths={2}
-                
                 captionLayout="dropdown"
-                fromYear={2015}
-                toYear={new Date().getFullYear() + 2}
+                startMonth={new Date(2015, 0, 1)}
+                endMonth={new Date(new Date().getFullYear() + 2, 11, 31)}
               />
             </PopoverContent>
           </Popover>
