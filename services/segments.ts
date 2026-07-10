@@ -99,10 +99,14 @@ export const segmentFromTransactions = async (payload: TransactionPayload[]): Pr
   }
 };
 
-export const segmentFromFile = async (file: File): Promise<StandardResponse<SegmentationData | BatchSegmentationData>> => {
+export const segmentFromFile = async (
+  file: File,
+  mapping: Record<string, string>
+): Promise<StandardResponse<SegmentationData | BatchSegmentationData>> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("mapping", JSON.stringify(mapping));
 
     const response = await axiosInstance.post<StandardResponse<SegmentationData | BatchSegmentationData>>(
       "/segmentation/transactions/upload",
@@ -117,12 +121,27 @@ export const segmentFromFile = async (file: File): Promise<StandardResponse<Segm
   }
 };
 
-export const getSegmentationHistory = async (limit = 50): Promise<StandardResponse<SegmentationHistoryItem[]>> => {
+// export const getSegmentationHistory = async (limit = 50): Promise<StandardResponse<SegmentationHistoryItem[]>> => {
+//   try {
+//     const response = await axiosInstance.get<StandardResponse<SegmentationHistoryItem[]>>(`/segmentation/history?limit=${limit}`);
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error fetching segmentation history:", error);
+//     throw error;
+//   }
+// };
+export const getBatchHistoryDetail = async (
+  batchId: string,
+  limit: number = 50,
+  skip: number = 0
+) => {
   try {
-    const response = await axiosInstance.get<StandardResponse<SegmentationHistoryItem[]>>(`/segmentation/history?limit=${limit}`);
+    const response = await axiosInstance.get(
+      `/segmentation/history/batches/${batchId}?limit=${limit}&skip=${skip}`
+    );
     return response.data;
   } catch (error) {
-    console.error("Error fetching segmentation history:", error);
+    console.error("Error fetching batch detail:", error);
     throw error;
   }
 };
@@ -147,12 +166,30 @@ export const getSegmentationHistoryBatches = async (limit = 50): Promise<Standar
   }
 };
 
-export const getSegmentationHistoryByBatchId = async (batchId: string): Promise<StandardResponse<SegmentationHistoryItem[]>> => {
+export const getSegmentationHistoryByBatchId = async (
+  batchId: string,
+  limit: number = 50,
+  skip: number = 0
+): Promise<StandardResponse<SegmentationHistoryItem[]>> => {
   try {
-    const response = await axiosInstance.get<StandardResponse<SegmentationHistoryItem[]>>(`/segmentation/history/batches/${batchId}`);
+    const response = await axiosInstance.get<StandardResponse<SegmentationHistoryItem[]>>(
+      `/segmentation/history/batches/${batchId}?limit=${limit}&skip=${skip}` 
+    );
     return response.data;
   } catch (error) {
-    console.error("Error fetching batch details:", error);
+    console.error(`Error fetching detail for batch ${batchId}:`, error);
+    throw error;
+  }
+};
+
+export const getCustomerDetailInBatch = async (batchId: string, customerId: string) => {
+  try {
+    const response = await axiosInstance.get(
+      `/segmentation/history/batches/${batchId}/customers/${encodeURIComponent(customerId)}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching single customer detail:", error);
     throw error;
   }
 };

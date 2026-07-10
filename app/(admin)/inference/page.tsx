@@ -108,7 +108,8 @@ const readWorkbook = async (file: File) => {
 };
 
 const getFileHeaders = async (file: File) => {
-  const workbook = await readWorkbook(file);
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array", sheetRows: 5 }); 
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: "" });
   return (rows[0] ?? []).map(String).filter((h) => h.trim() !== "");
@@ -194,6 +195,9 @@ export default function InferencePage() {
 
   const filePayloads = useMemo<SegmentationData[]>(() => {
     if (!fileResult?.data) return [];
+    if ("status" in fileResult.data && (fileResult.data as any).status === "processing") {
+      return []; 
+    }
     if ("total_customers" in fileResult.data) {
       return fileResult.data.data;
     }
@@ -276,27 +280,12 @@ export default function InferencePage() {
     
     setFileLoading(true); setFileError(null); setFileResult(null);
     try {
-      const rows = await getFileRows(uploadFile);
-      const mappedRows = rows.map((row) => ({
-        customer_id: row[columnMapping.customer_id] ?? "",
-        transaction_date: row[columnMapping.transaction_date] ?? "",
-        invoice_id: row[columnMapping.invoice_id] ?? "",
-        amount: row[columnMapping.amount] ?? "",
-      }));
-
-      const sheet = XLSX.utils.json_to_sheet(mappedRows, { header: requiredFields.map((field) => field.key) });
-      const csv = XLSX.utils.sheet_to_csv(sheet);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const mappedFile = new File([blob], "mapped_transactions.csv", { type: "text/csv" });
-
-      const response = await segmentFromFile(mappedFile);
+      const response = await segmentFromFile(uploadFile, columnMapping);
       setFileResult(response);
       
-      // Efek smooth scroll ke bawah agar user langsung melihat hasil
       setTimeout(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       }, 100);
-
     } catch (err) {
       console.error(err);
       setFileError("Upload gagal. Pastikan format file sesuai.");
@@ -360,7 +349,7 @@ export default function InferencePage() {
                     {lrfmPayload && (
                       <div className="mt-6">
                         <div className="grid gap-4 lg:grid-cols-[2fr_1.2fr]">
-                          <div className="rounded-2xl border border-foreground/10 bg-gradient-to-br from-amber-50 via-white to-rose-50 p-5 shadow-sm">
+                          <div className="rounded-2xl border border-foreground/10 bg-linear-to-br from-amber-50 via-white to-rose-50 p-5 shadow-sm">
                             <div className="flex flex-wrap items-center gap-3">
                               <Badge variant="secondary">Cluster {lrfmPayload.cluster}</Badge>
                               <Badge variant="outline">{lrfmPayload.segment}</Badge>
@@ -410,7 +399,7 @@ export default function InferencePage() {
                     {transactionPayload && (
                       <div className="mt-6">
                         <div className="grid gap-4 lg:grid-cols-[2fr_1.2fr]">
-                          <div className="rounded-2xl border border-foreground/10 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm">
+                          <div className="rounded-2xl border border-foreground/10 bg-linear-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm">
                             <div className="flex flex-wrap items-center gap-3">
                               <Badge variant="secondary">Cluster {transactionPayload.cluster}</Badge>
                               <Badge variant="outline">{transactionPayload.segment}</Badge>
@@ -471,6 +460,30 @@ export default function InferencePage() {
                       {fileLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing Batch...</span> : <span className="inline-flex items-center gap-2"><UploadCloud className="h-4 w-4" /> Run Inference</span>}
                     </Button>
 
+                    {/* ========================================================= */}
+                    {/* BANNER NOTIFIKASI BACKGROUND TASK                         */}
+                    {/* ========================================================= */}
+                    {fileResult?.data && (fileResult.data as any).status === "processing" && (
+                      <div className="mt-10 p-8 border rounded-2xl bg-linear-to-bl from-blue-50 to-indigo-50 border-blue-100 flex flex-col items-center text-center space-y-5 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="p-3 bg-blue-100 rounded-full">
+                          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-xl text-blue-900">File Sedang Dianalisis!</h3>
+                          <p className="text-sm text-blue-700 mt-2 max-w-md mx-auto">
+                            Sistem sedang memproses ratusan ribu data transaksi kamu di latar belakang menggunakan algoritma Fuzzy C-Means. Ini akan memakan waktu beberapa saat.
+                          </p>
+                        </div>
+                        <Button 
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                          onClick={() => router.push(currentBatchId ? `/inference-history/${currentBatchId}` : '/inference-history')}
+                        >
+                          <BarChart2 className="w-4 h-4 mr-2" /> Pantau Progress di History <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    )}
+                    
                     {/* ========================================================= */}
                     {/* HASIL BATCH INFERENCE (MAKRO + ACCORDION)                */}
                     {/* ========================================================= */}
