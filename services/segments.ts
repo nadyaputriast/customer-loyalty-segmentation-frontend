@@ -41,6 +41,7 @@ export interface SegmentationData {
 export interface BatchSegmentationData {
   status: string;
   total_customers: number;
+  batch_id?: string;
   data: SegmentationData[];
 }
 
@@ -101,12 +102,12 @@ export const segmentFromTransactions = async (payload: TransactionPayload[]): Pr
 
 export const segmentFromFile = async (
   file: File,
-  mapping: Record<string, string>
+  // mapping: Record<string, string>
 ): Promise<StandardResponse<SegmentationData | BatchSegmentationData>> => {
   try {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("mapping", JSON.stringify(mapping));
+    // formData.append("mapping", JSON.stringify(mapping));
 
     const response = await axiosInstance.post<StandardResponse<SegmentationData | BatchSegmentationData>>(
       "/segmentation/transactions/upload",

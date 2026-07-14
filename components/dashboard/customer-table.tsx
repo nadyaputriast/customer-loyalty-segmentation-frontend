@@ -60,7 +60,7 @@ export default function CustomerTableSection({
 }) {
 
   const currentPage = metadata?.currentPage || 1;
-  const totalPagesCount = metadata?.totalPage ?? metadata?.totalPages ?? 1;
+  const totalPagesCount = metadata?.totalPages ?? 1;
 
   const handlePrevPage = (e: React.MouseEvent) => {
     e.preventDefault();
