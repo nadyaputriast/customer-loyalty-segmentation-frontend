@@ -113,6 +113,8 @@ export default function ClusterScatterPlot({
               tickLine={false}
               tick={{ fontSize: 12, fill: '#a1a1aa' }}
               tickMargin={10}
+              scale="log"             
+              domain={['auto', 'auto']}
               tickFormatter={(val) => formatTick(val, currentConfig.yUnit)}
             />
 

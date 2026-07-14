@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { Loader2, Plus, Trash2, UploadCloud, ArrowRight, BarChart2 } from "lucide-react";
@@ -15,10 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-import { 
-  segmentFromFile, 
-  segmentFromLRFM, 
-  segmentFromTransactions, 
+import {
+  segmentFromFile,
+  segmentFromLRFM,
+  segmentFromTransactions,
   TransactionPayload,
   StandardResponse,
   SegmentationData,
@@ -29,6 +29,11 @@ import InferenceCharts from "@/components/segments/inference-stats";
 import { useSegments } from "@/contexts/segments-context";
 
 type TransactionRow = TransactionPayload & { rowId: string };
+
+type FileResponseData =
+  | SegmentationData
+  | BatchSegmentationData
+  | { batch_id: string; status: "processing" };
 
 const createRowId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -102,25 +107,14 @@ const autoDetectMapping = (headers: string[]): ColumnMapping => {
   return mapping;
 };
 
-const readWorkbook = async (file: File) => {
-  const data = await file.arrayBuffer();
-  return XLSX.read(data, { type: "array", cellDates: true });
-};
-
 const getFileHeaders = async (file: File) => {
-  const workbook = await readWorkbook(file);
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array", sheetRows: 5 });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, defval: "" });
   return (rows[0] ?? []).map(String).filter((h) => h.trim() !== "");
 };
 
-const getFileRows = async (file: File) => {
-  const workbook = await readWorkbook(file);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
-};
-
-// Fungsi perhitungan statistik (Mean & Std Dev)
 const calculateStats = (arr: number[]) => {
   if (arr.length === 0) return { mean: 0, std: 0 };
   const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
@@ -161,81 +155,86 @@ const FuzzyMembershipCard = ({ membership }: { membership: Record<string, string
 
 export default function InferencePage() {
   const router = useRouter();
-  const { clusterStats, getDistributionAsync } = useSegments();
-
-  useEffect(() => {
-    getDistributionAsync();
-  }, [getDistributionAsync]);
+  const { clusterStats } = useSegments();
 
   const [lrfmValues, setLrfmValues] = useState({ L: "", R: "", F: "", M: "" });
+  const [lrfmResult, setLrfmResult] = useState<StandardResponse<SegmentationData> | null>(null);
+  const [lrfmLoading, setLrfmLoading] = useState(false);
+  const [lrfmError, setLrfmError] = useState<string | null>(null);
+
   const [transactions, setTransactions] = useState<TransactionRow[]>([createEmptyTransaction()]);
+  const [transactionResult, setTransactionResult] = useState<StandardResponse<SegmentationData> | null>(null);
+  const [transactionLoading, setTransactionLoading] = useState(false);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
+
+  // ---- File Upload ----
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>(EMPTY_MAPPING);
   const [mappingError, setMappingError] = useState<string | null>(null);
-
-  const [lrfmResult, setLrfmResult] = useState<StandardResponse<SegmentationData> | null>(null);
-  const [transactionResult, setTransactionResult] = useState<StandardResponse<SegmentationData> | null>(null);
-  const [fileResult, setFileResult] = useState<StandardResponse<SegmentationData | BatchSegmentationData> | null>(null);
-
-  const [lrfmLoading, setLrfmLoading] = useState(false);
-  const [transactionLoading, setTransactionLoading] = useState(false);
+  const [fileResult, setFileResult] = useState<StandardResponse<FileResponseData> | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
-
-  const [lrfmError, setLrfmError] = useState<string | null>(null);
-  const [transactionError, setTransactionError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  const isMappingComplete = useMemo(() => requiredFields.every((field) => columnMapping[field.key]), [columnMapping]);
-  const canSubmitLrfm = useMemo(() => Object.values(lrfmValues).every((value) => value !== ""), [lrfmValues]);
-
+  // ---- Memos ----
+  const canSubmitLrfm = useMemo(() => Object.values(lrfmValues).every((v) => v !== ""), [lrfmValues]);
   const lrfmPayload = useMemo(() => lrfmResult?.data ?? null, [lrfmResult]);
   const transactionPayload = useMemo(() => transactionResult?.data ?? null, [transactionResult]);
 
   const filePayloads = useMemo<SegmentationData[]>(() => {
     if (!fileResult?.data) return [];
-    if ("total_customers" in fileResult.data) {
-      return fileResult.data.data;
-    }
-    return [fileResult.data as SegmentationData]; 
+    const d = fileResult.data;
+    if ("status" in d && d.status === "processing") return [];
+    if ("total_customers" in d && Array.isArray(d.data)) return d.data;
+    if ("cluster" in d) return [d as SegmentationData];
+    return [];
   }, [fileResult]);
 
-  // Mengambil Batch ID dari response untuk diarahkan ke History
   const currentBatchId = useMemo(() => {
-    return (fileResult?.data as any)?.batch_id || null;
+    const d = fileResult?.data;
+    return d && "batch_id" in d ? d.batch_id : null;
   }, [fileResult]);
 
-  // Mengolah data statistik komprehensif per cluster
+  const isProcessing = useMemo(() => {
+    const d = fileResult?.data;
+    return d && "status" in d && d.status === "processing";
+  }, [fileResult]);
+
   const batchComprehensiveStats = useMemo(() => {
     if (filePayloads.length === 0) return null;
-    
     const clustersMap = new Map<number, SegmentationData[]>();
-    filePayloads.forEach(item => {
+    filePayloads.forEach((item) => {
       if (!clustersMap.has(item.cluster)) clustersMap.set(item.cluster, []);
       clustersMap.get(item.cluster)!.push(item);
     });
-
-    return Array.from(clustersMap.entries()).map(([clusterId, items]) => {
-      const Ls = items.map(i => i.lrfm_calculated?.L || 0);
-      const Rs = items.map(i => i.lrfm_calculated?.R || 0);
-      const Fs = items.map(i => i.lrfm_calculated?.F || 0);
-      const Ms = items.map(i => i.lrfm_calculated?.M || 0);
-
-      return {
-        cluster: clusterId,
-        segmentName: items[0].segment,
-        count: items.length,
-        percentage: ((items.length / filePayloads.length) * 100).toFixed(1),
-        stats: {
-          L: calculateStats(Ls),
-          R: calculateStats(Rs),
-          F: calculateStats(Fs),
-          M: calculateStats(Ms),
-        }
-      };
-    }).sort((a, b) => b.count - a.count);
+    return Array.from(clustersMap.entries())
+      .map(([clusterId, items]) => {
+        const Ls = items.map((i) => i.lrfm_calculated?.L || 0);
+        const Rs = items.map((i) => i.lrfm_calculated?.R || 0);
+        const Fs = items.map((i) => i.lrfm_calculated?.F || 0);
+        const Ms = items.map((i) => i.lrfm_calculated?.M || 0);
+        return {
+          cluster: clusterId,
+          segmentName: items[0].segment,
+          count: items.length,
+          percentage: ((items.length / filePayloads.length) * 100).toFixed(1),
+          stats: {
+            L: calculateStats(Ls),
+            R: calculateStats(Rs),
+            F: calculateStats(Fs),
+            M: calculateStats(Ms),
+          },
+        };
+      })
+      .sort((a, b) => b.count - a.count);
   }, [filePayloads]);
 
+  const isMappingComplete = useMemo(
+    () => requiredFields.every((field) => columnMapping[field.key]),
+    [columnMapping]
+  );
+
+  // ---- Handlers ----
   const handleLrfmSubmit = async () => {
     setLrfmLoading(true); setLrfmError(null); setLrfmResult(null);
     try {
@@ -253,13 +252,20 @@ export default function InferencePage() {
   const handleAddTransaction = () => setTransactions((prev) => [...prev, createEmptyTransaction()]);
   const handleRemoveTransaction = (index: number) => setTransactions((prev) => prev.filter((_, idx) => idx !== index));
   const updateTransaction = (index: number, key: keyof TransactionPayload, value: string) => {
-    setTransactions((prev) => prev.map((transaction, idx) => idx === index ? { ...transaction, [key]: key === "amount" ? Number(value) : value } : transaction));
+    setTransactions((prev) =>
+      prev.map((t, idx) => (idx === index ? { ...t, [key]: key === "amount" ? Number(value) : value } : t))
+    );
   };
 
   const handleTransactionSubmit = async () => {
     setTransactionLoading(true); setTransactionError(null); setTransactionResult(null);
     try {
-      const payload = transactions.map((t) => ({ customer_id: t.customer_id, transaction_date: t.transaction_date, invoice_id: t.invoice_id, amount: t.amount }));
+      const payload = transactions.map((t) => ({
+        customer_id: t.customer_id,
+        transaction_date: t.transaction_date,
+        invoice_id: t.invoice_id,
+        amount: t.amount,
+      }));
       const response = await segmentFromTransactions(payload);
       setTransactionResult(response);
     } catch (err) {
@@ -273,51 +279,39 @@ export default function InferencePage() {
   const handleFileSubmit = async () => {
     if (!uploadFile) { setFileError("Silakan pilih file CSV atau XLSX terlebih dahulu."); return; }
     if (!isMappingComplete) { setMappingError("Lengkapi mapping kolom terlebih dahulu."); return; }
-    
+
     setFileLoading(true); setFileError(null); setFileResult(null);
     try {
-      const rows = await getFileRows(uploadFile);
-      const mappedRows = rows.map((row) => ({
-        customer_id: row[columnMapping.customer_id] ?? "",
-        transaction_date: row[columnMapping.transaction_date] ?? "",
-        invoice_id: row[columnMapping.invoice_id] ?? "",
-        amount: row[columnMapping.amount] ?? "",
-      }));
-
-      const sheet = XLSX.utils.json_to_sheet(mappedRows, { header: requiredFields.map((field) => field.key) });
-      const csv = XLSX.utils.sheet_to_csv(sheet);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const mappedFile = new File([blob], "mapped_transactions.csv", { type: "text/csv" });
-
-      const response = await segmentFromFile(mappedFile);
-      setFileResult(response);
-      
-      // Efek smooth scroll ke bawah agar user langsung melihat hasil
+      // IMPORTANT: calls segmentFromFile with only the file (no mapping)
+      // The backend will auto-detect column mappings.
+      const response = await segmentFromFile(uploadFile);
+      setFileResult(response as StandardResponse<FileResponseData>);
       setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
       }, 100);
-
     } catch (err) {
-      console.error(err);
-      setFileError("Upload gagal. Pastikan format file sesuai.");
+      const error = err as { response?: { data?: { message?: string; detail?: string } }; message?: string };
+      const detail = error.response?.data?.message ?? error.response?.data?.detail ?? error.message;
+      setFileError(`Upload gagal: ${detail ?? "unknown error"}`);
     } finally {
       setFileLoading(false);
     }
   };
 
   const handleFileSelection = async (file: File | null) => {
-    setUploadFile(file); setFileResult(null); setFileError(null); setMappingError(null); setFileHeaders([]); setColumnMapping(EMPTY_MAPPING);
+    setUploadFile(file); setFileResult(null); setFileError(null); setMappingError(null);
+    setFileHeaders([]); setColumnMapping(EMPTY_MAPPING);
     if (!file) return;
     try {
       const headers = await getFileHeaders(file);
       setFileHeaders(headers);
       setColumnMapping(autoDetectMapping(headers));
-    } catch (err) {
-      console.error(err);
+    } catch {
       setFileError("File tidak bisa dibaca. Pastikan format CSV/XLSX valid.");
     }
   };
 
+  // ─────────────────────────── render ─────────────────────────────
   return (
     <>
       <SiteHeader breadcrumbs={[{ label: "LoyalT", href: "/dashboard" }, { label: "Inference" }]} />
@@ -326,7 +320,9 @@ export default function InferencePage() {
           <div className="flex w-full flex-col gap-6 px-4 lg:px-6">
             <header className="w-full">
               <h1 className="text-xl font-medium tracking-tight text-zinc-900">Inference Workspace</h1>
-              <p className="text-sm text-muted-foreground mt-1">Jalankan segmentasi berdasarkan LRFM, transaksi manual, atau upload CSV/XLSX.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Jalankan segmentasi berdasarkan LRFM, transaksi manual, atau upload CSV/XLSX.
+              </p>
             </header>
 
             <Tabs defaultValue="upload" className="w-full">
@@ -336,7 +332,7 @@ export default function InferencePage() {
                 <TabsTrigger value="upload">CSV/XLSX</TabsTrigger>
               </TabsList>
 
-              {/* --- LRFM TAB --- */}
+              {/* ===== LRFM TAB ===== */}
               <TabsContent value="lrfm" className="mt-4">
                 <Card>
                   <CardHeader>
@@ -348,19 +344,28 @@ export default function InferencePage() {
                       {(["L", "R", "F", "M"] as const).map((key) => (
                         <div key={key} className="space-y-2">
                           <Label htmlFor={`lrfm-${key}`}>{key}</Label>
-                          <Input id={`lrfm-${key}`} type="number" value={lrfmValues[key]} onChange={(e) => setLrfmValues((prev) => ({ ...prev, [key]: e.target.value }))} />
+                          <Input
+                            id={`lrfm-${key}`}
+                            type="number"
+                            value={lrfmValues[key]}
+                            onChange={(e) => setLrfmValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                          />
                         </div>
                       ))}
                     </div>
                     {lrfmError && <p className="text-sm text-red-500">{lrfmError}</p>}
                     <Button onClick={handleLrfmSubmit} disabled={!canSubmitLrfm || lrfmLoading}>
-                      {lrfmLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing</span> : "Run Inference"}
+                      {lrfmLoading ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing</span>
+                      ) : (
+                        "Run Inference"
+                      )}
                     </Button>
 
                     {lrfmPayload && (
                       <div className="mt-6">
                         <div className="grid gap-4 lg:grid-cols-[2fr_1.2fr]">
-                          <div className="rounded-2xl border border-foreground/10 bg-gradient-to-br from-amber-50 via-white to-rose-50 p-5 shadow-sm">
+                          <div className="rounded-2xl border border-foreground/10 bg-linear-to-br from-amber-50 via-white to-rose-50 p-5 shadow-sm">
                             <div className="flex flex-wrap items-center gap-3">
                               <Badge variant="secondary">Cluster {lrfmPayload.cluster}</Badge>
                               <Badge variant="outline">{lrfmPayload.segment}</Badge>
@@ -380,7 +385,7 @@ export default function InferencePage() {
                 </Card>
               </TabsContent>
 
-              {/* --- TRANSACTION TAB --- */}
+              {/* ===== TRANSACTION TAB ===== */}
               <TabsContent value="transaction" className="mt-4">
                 <Card>
                   <CardHeader>
@@ -406,11 +411,11 @@ export default function InferencePage() {
                       </Button>
                     </div>
                     {transactionError && <p className="text-sm text-red-500">{transactionError}</p>}
-                    
+
                     {transactionPayload && (
                       <div className="mt-6">
                         <div className="grid gap-4 lg:grid-cols-[2fr_1.2fr]">
-                          <div className="rounded-2xl border border-foreground/10 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm">
+                          <div className="rounded-2xl border border-foreground/10 bg-linear-to-br from-emerald-50 via-white to-sky-50 p-5 shadow-sm">
                             <div className="flex flex-wrap items-center gap-3">
                               <Badge variant="secondary">Cluster {transactionPayload.cluster}</Badge>
                               <Badge variant="outline">{transactionPayload.segment}</Badge>
@@ -430,7 +435,7 @@ export default function InferencePage() {
                 </Card>
               </TabsContent>
 
-              {/* --- UPLOAD TAB --- */}
+              {/* ===== UPLOAD TAB ===== */}
               <TabsContent value="upload" className="mt-4">
                 <Card>
                   <CardHeader>
@@ -438,10 +443,14 @@ export default function InferencePage() {
                     <CardDescription>Upload file CSV atau XLSX berisi transaksi pelanggan. Kolom akan di-mapping otomatis.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    
                     <div className="space-y-2">
                       <Label htmlFor="upload-file">File</Label>
-                      <Input id="upload-file" type="file" accept=".csv,.xlsx,.xls" onChange={(e) => handleFileSelection(e.target.files?.[0] ?? null)} />
+                      <Input
+                        id="upload-file"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={(e) => handleFileSelection(e.target.files?.[0] ?? null)}
+                      />
                     </div>
 
                     {fileHeaders.length > 0 && (
@@ -451,11 +460,21 @@ export default function InferencePage() {
                           {requiredFields.map((field) => (
                             <div key={field.key} className="space-y-2">
                               <Label>{field.label}</Label>
-                              <Select value={columnMapping[field.key] || NONE_SELECT_VALUE} onValueChange={(val) => setColumnMapping((prev) => ({ ...prev, [field.key]: val === NONE_SELECT_VALUE ? "" : val }))}>
+                              <Select
+                                value={columnMapping[field.key] || NONE_SELECT_VALUE}
+                                onValueChange={(val) =>
+                                  setColumnMapping((prev) => ({
+                                    ...prev,
+                                    [field.key]: val === NONE_SELECT_VALUE ? "" : val,
+                                  }))
+                                }
+                              >
                                 <SelectTrigger className="w-full"><SelectValue placeholder="Pilih kolom" /></SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value={NONE_SELECT_VALUE}>Tidak dipilih</SelectItem>
-                                  {fileHeaders.map((header) => (<SelectItem key={header} value={header}>{header}</SelectItem>))}
+                                  {fileHeaders.map((header) => (
+                                    <SelectItem key={header} value={header}>{header}</SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -468,43 +487,61 @@ export default function InferencePage() {
                     {mappingError && <p className="text-sm text-red-500">{mappingError}</p>}
 
                     <Button onClick={handleFileSubmit} disabled={fileLoading || !uploadFile}>
-                      {fileLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing Batch...</span> : <span className="inline-flex items-center gap-2"><UploadCloud className="h-4 w-4" /> Run Inference</span>}
+                      {fileLoading ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Processing Batch...</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-2"><UploadCloud className="h-4 w-4" /> Run Inference</span>
+                      )}
                     </Button>
 
-                    {/* ========================================================= */}
-                    {/* HASIL BATCH INFERENCE (MAKRO + ACCORDION)                */}
-                    {/* ========================================================= */}
+                    {/* Background task banner */}
+                    {isProcessing && (
+                      <div className="mt-10 p-8 border rounded-2xl bg-linear-to-bl from-blue-50 to-indigo-50 border-blue-100 flex flex-col items-center text-center space-y-5 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="p-3 bg-blue-100 rounded-full"><Loader2 className="w-8 h-8 text-blue-600 animate-spin" /></div>
+                        <div>
+                          <h3 className="font-bold text-xl text-blue-900">File Sedang Dianalisis!</h3>
+                          <p className="text-sm text-blue-700 mt-2 max-w-md mx-auto">
+                            Sistem sedang memproses data transaksi kamu di latar belakang.
+                          </p>
+                        </div>
+                        <Button
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                          onClick={() => router.push(currentBatchId ? `/inference-history/${currentBatchId}` : "/inference-history")}
+                        >
+                          <BarChart2 className="w-4 h-4 mr-2" /> Pantau Progress di History <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Inline result (small file) */}
                     {filePayloads.length > 0 && batchComprehensiveStats && (
                       <div className="space-y-8 mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500 border-t pt-8">
-                        
-                        {/* Header Info & Button Detail */}
                         <div className="bg-zinc-50 border rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                           <div>
                             <h3 className="font-semibold text-xl text-zinc-900">Berhasil Memproses {filePayloads.length} Pelanggan!</h3>
-                            <p className="text-sm text-muted-foreground mt-1">Terbagi ke dalam {batchComprehensiveStats.length} cluster berbeda berdasarkan perilaku transaksinya.</p>
+                            <p className="text-sm text-muted-foreground mt-1">Terbagi ke dalam {batchComprehensiveStats.length} cluster berbeda.</p>
                           </div>
-                          
-                          <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
-                            {currentBatchId && <Badge variant="secondary" className="font-mono text-xs hidden sm:flex">ID: {currentBatchId.split('-')[0]}...</Badge>}
-                            <Button 
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm" 
-                              onClick={() => router.push(currentBatchId ? `/inference-history/${currentBatchId}` : '/inference-history')}
-                            >
-                              <BarChart2 className="w-4 h-4 mr-2" /> Lihat List Lengkap di History <ArrowRight className="w-4 h-4 ml-2" />
-                            </Button>
-                          </div>
+                          {currentBatchId && (
+                            <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
+                              <Badge variant="secondary" className="font-mono text-xs">ID: {currentBatchId.split("-")[0]}...</Badge>
+                              <Button
+                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                                onClick={() => router.push(`/inference-history/${currentBatchId}`)}
+                              >
+                                <BarChart2 className="w-4 h-4 mr-2" /> Lihat Detail di History <ArrowRight className="w-4 h-4 ml-2" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Chart Distribusi Keseluruhan */}
                         <BatchInferenceGraphics data={filePayloads} />
 
-                        {/* Karakteristik per Cluster (Mean & Std Dev) */}
                         <div className="bg-white border rounded-2xl p-6 shadow-sm mt-4">
                           <div className="mb-6">
                             <h3 className="font-semibold text-lg text-zinc-900">Karakteristik & Variansi per Cluster</h3>
                             <p className="text-sm text-muted-foreground">Analisis mendalam mengenai nilai rata-rata dan penyebaran data dalam setiap segmen.</p>
                           </div>
-                          
                           <Accordion type="single" collapsible className="w-full space-y-3">
                             {batchComprehensiveStats.map((c) => (
                               <AccordionItem value={`cluster-${c.cluster}`} key={c.cluster} className="bg-zinc-50/50 border rounded-xl px-4 overflow-hidden">
@@ -521,29 +558,24 @@ export default function InferencePage() {
                                 </AccordionTrigger>
                                 <AccordionContent className="pb-6 pt-2">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm bg-white p-5 rounded-xl border shadow-sm">
-                                    
-                                    {/* Kolom Mean */}
                                     <div className="space-y-3">
                                       <p className="font-semibold text-zinc-800 border-b pb-2 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-blue-500 mr-2"></span> Rata-rata (Mean)
+                                        <span className="w-2 h-2 rounded-full bg-blue-500 mr-2" /> Rata-rata (Mean)
                                       </p>
                                       <div className="flex justify-between"><span className="text-zinc-500">Length</span><span className="font-medium">{c.stats.L.mean.toFixed(1)} hr</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Recency</span><span className="font-medium">{c.stats.R.mean.toFixed(1)} hr</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Frequency</span><span className="font-medium">{c.stats.F.mean.toFixed(1)} x</span></div>
-                                      <div className="flex justify-between"><span className="text-zinc-500">Monetary</span><span className="font-medium text-emerald-600">¥ {(c.stats.M.mean).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
+                                      <div className="flex justify-between"><span className="text-zinc-500">Monetary</span><span className="font-medium text-emerald-600">¥ {c.stats.M.mean.toLocaleString("id-ID", { maximumFractionDigits: 0 })}</span></div>
                                     </div>
-
-                                    {/* Kolom Standar Deviasi */}
                                     <div className="space-y-3">
                                       <p className="font-semibold text-zinc-800 border-b pb-2 flex items-center">
-                                        <span className="w-2 h-2 rounded-full bg-amber-500 mr-2"></span> Standar Deviasi (Variansi)
+                                        <span className="w-2 h-2 rounded-full bg-amber-500 mr-2" /> Standar Deviasi (Variansi)
                                       </p>
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi L</span><span className="font-medium text-zinc-600">± {c.stats.L.std.toFixed(1)}</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi R</span><span className="font-medium text-zinc-600">± {c.stats.R.std.toFixed(1)}</span></div>
                                       <div className="flex justify-between"><span className="text-zinc-500">Deviasi F</span><span className="font-medium text-zinc-600">± {c.stats.F.std.toFixed(1)}</span></div>
-                                      <div className="flex justify-between"><span className="text-zinc-500">Deviasi M</span><span className="font-medium text-zinc-600">± ¥ {(c.stats.M.std).toLocaleString('id-ID', { maximumFractionDigits: 0 })}</span></div>
+                                      <div className="flex justify-between"><span className="text-zinc-500">Deviasi M</span><span className="font-medium text-zinc-600">± ¥ {c.stats.M.std.toLocaleString("id-ID", { maximumFractionDigits: 0 })}</span></div>
                                     </div>
-
                                   </div>
                                   <p className="text-xs text-muted-foreground mt-4 italic text-center">
                                     *Semakin besar nilai Standar Deviasi, semakin menyebar (bervariasi) perilaku belanja pelanggan di dalam cluster ini.
@@ -553,7 +585,6 @@ export default function InferencePage() {
                             ))}
                           </Accordion>
                         </div>
-                        
                       </div>
                     )}
                   </CardContent>

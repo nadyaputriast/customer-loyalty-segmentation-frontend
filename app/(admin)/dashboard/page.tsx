@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
-    kpis, customerTableData, customerTableMetadata,
+    customerTableData, customerTableMetadata,
     getChartDataAsync, getCustomerTableDataAsync,
     loadingTable
   } = useAnalytics();

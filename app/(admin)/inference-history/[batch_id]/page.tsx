@@ -8,6 +8,7 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // <--- Import Select
 
 import { getSegmentationHistoryByBatchId, SegmentationHistoryItem } from "@/services/segments";
 import { BatchInferenceGraphics } from "@/components/inference/batch-graphics";
@@ -22,11 +23,16 @@ export default function BatchDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
+
   useEffect(() => {
     const fetchDetail = async () => {
       try {
         setLoading(true);
-        const response = await getSegmentationHistoryByBatchId(batchId);
+        const skip = page * pageSize;
+        // Panggil API dengan parameter limit (pageSize) dan skip
+        const response = await getSegmentationHistoryByBatchId(batchId, pageSize, skip);
         setItems(response?.data ?? []);
       } catch (err) {
         console.error(err);
@@ -36,7 +42,7 @@ export default function BatchDetailPage() {
       }
     };
     if (batchId) fetchDetail();
-  }, [batchId]);
+  }, [batchId, page, pageSize]); // Akan otomatis fetch ulang kalau page/pageSize berubah
 
   const filteredItems = useMemo(() => {
     if (!searchQuery) return items;
@@ -45,6 +51,10 @@ export default function BatchDetailPage() {
       (item) => item.customer_id?.toLowerCase().includes(q) || item.segment?.toLowerCase().includes(q)
     );
   }, [items, searchQuery]);
+
+  // Fungsi navigasi halaman
+  const handleNextPage = () => setPage((prev) => prev + 1);
+  const handlePrevPage = () => setPage((prev) => Math.max(0, prev - 1));
 
   return (
     <>
@@ -61,23 +71,24 @@ export default function BatchDetailPage() {
               </div>
             </div>
 
-            {loading ? (
+            {loading && items.length === 0 ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div>
             ) : error ? (
               <Card><CardContent className="py-6"><p className="text-sm text-red-500">{error}</p></CardContent></Card>
             ) : (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 
+                {/* Catatan: Karena kita cuma narik 50 data per page, grafik ini sementara cuma ngitung 50 data tersebut */}
                 <BatchInferenceGraphics data={items} />
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-zinc-900">Daftar Pelanggan ({items.length})</h3>
+                    <h3 className="text-lg font-medium text-zinc-900">Daftar Pelanggan</h3>
                     <div className="relative w-64">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <input
                         type="text"
-                        placeholder="Cari Customer ID / Segmen..."
+                        placeholder="Cari di halaman ini..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-9 text-sm"
@@ -125,12 +136,62 @@ export default function BatchDetailPage() {
                               </td>
                             </tr>
                           )) : (
-                            <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Tidak ada hasil pencarian.</td></tr>
+                            <tr><td colSpan={4} className="p-8 text-center text-muted-foreground">Tidak ada data.</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
                   </div>
+
+                  {/* KONTROL PAGINATION */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-zinc-500">Tampilkan:</span>
+                      <Select
+                        value={pageSize.toString()}
+                        onValueChange={(val) => {
+                          setPageSize(Number(val));
+                          setPage(0); // Reset ke halaman pertama
+                        }}
+                      >
+                        <SelectTrigger className="w-20 h-8 text-sm bg-white">
+                          <SelectValue placeholder="50" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-zinc-500">data per halaman</span>
+                    </div>
+
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm font-medium text-zinc-700">Halaman {page + 1}</span>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handlePrevPage} 
+                          disabled={page === 0 || loading}
+                          className="bg-white"
+                        >
+                          Sebelumnya
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleNextPage} 
+                          disabled={items.length < pageSize || loading} 
+                          className="bg-white"
+                        >
+                          Selanjutnya
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             )}
