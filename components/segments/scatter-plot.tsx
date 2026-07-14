@@ -128,15 +128,15 @@ export default function ClusterScatterPlot({
             {segments.map((segment) => {
               if (activeSegmentId !== "all" && activeSegmentId !== segment.id) return null;
 
-              const segmentData = data.filter(d => d.clusterId === segment.id);
+              const segmentData = data.filter(d => Number(d.clusterId) === Number(segment.id));
               return (
                 <Scatter
                   key={segment.id}
                   name={segment.name}
                   data={segmentData}
-                  fill={segment.color}
+                  fill={segment.color || "#a1a1aa"}
                   fillOpacity={activeSegmentId === "all" ? 0.6 : 0.85}
-                  stroke={segment.color}
+                  stroke={segment.color || "#a1a1aa"}
                   strokeWidth={1}
                 />
               )
